@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spotify Album Wallpaper</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0a;
+    --text: #eae6e1;
+    --text-dim: rgba(234, 230, 225, 0.25);
+    --text-mid: rgba(234, 230, 225, 0.5);
+    --accent: #1DB954;
+    --left-accent: #a78bfa;
+    --right-accent: #34d399;
+  }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 15vh;
+    justify-content: center;
+    user-select: none;
+  }
+
+  #ambient-bg {
+    position: fixed; inset: 0; z-index: 0;
+    filter: blur(160px) saturate(1.5) brightness(0.12);
+    background-size: cover; background-position: center;
+    transform: scale(1.6); transition: background-image 5s ease;
+  }
+  #noise {
+    position: fixed; inset: 0; z-index: 1; opacity: 0.02;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  #login-screen {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 28px; background: var(--bg);
+  }
+  #login-screen.hidden { display: none; }
+  .login-icon {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 25px rgba(29,185,84,0.2); }
+    50% { box-shadow: 0 0 45px rgba(29,185,84,0.4); }
+  }
+  .login-icon svg { width: 26px; height: 26px; fill: #000; }
+  .login-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .login-subtitle { font-size: 13px; color: var(--text-dim); max-width: 320px; text-align: center; line-height: 1.6; }
+  .login-btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 30px; background: var(--accent); color: #000;
+    font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600;
+    border: none; border-radius: 50px; cursor: pointer; transition: all 0.3s ease;
+  }
+  .login-btn:hover { transform: scale(1.05); box-shadow: 0 0 35px rgba(29,185,84,0.3); }
+  .login-btn svg { width: 18px; height: 18px; fill: #000; }
+  .setup-toggle {
+    font-size: 12px; color: var(--text-dim); cursor: pointer;
+    border: none; background: none; font-family: 'Outfit', sans-serif;
+  }
+  .setup-toggle:hover { color: var(--text-mid); }
+  .setup-instructions {
+    display: none; max-width: 460px; padding: 20px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 14px; text-align: left; line-height: 1.7;
+    font-size: 12px; color: var(--text-mid);
+  }
+  .setup-instructions.visible { display: block; }
+  .setup-instructions code {
+    background: rgba(255,255,255,0.06); padding: 2px 6px;
+    border-radius: 4px; font-size: 11px; color: var(--accent);
+  }
+  .setup-instructions ol { padding-left: 18px; margin: 10px 0; }
+  .setup-instructions li { margin-bottom: 5px; }
+  .client-id-input {
+    width: 100%; padding: 10px 14px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; color: var(--text);
+    font-family: 'Outfit', monospace; font-size: 13px;
+    margin-top: 10px; outline: none;
+  }
+  .client-id-input:focus { border-color: var(--accent); }
+  .client-id-input::placeholder { color: var(--text-dim); }
+
+  #wallpaper {
+    position: relative; z-index: 2;
+    display: none;
+    gap: 48px;
+    max-width: 1050px;
+    width: 100%;
+    padding: 0 40px;
+  }
+  #wallpaper.active { display: flex; }
+
+  .section { flex: 1; display: flex; flex-direction: column; }
+
+  .section-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px;
+  }
+  .section-label {
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 3.5px;
+  }
+  .section-left .section-label { color: var(--left-accent); }
+  .section-right .section-label { color: var(--right-accent); }
+  .section-sublabel {
+    font-size: 9px; color: var(--text-dim);
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .header-line {
+    flex: 1; height: 1px;
+    background: linear-gradient(to right, rgba(255,255,255,0.05), transparent);
+  }
+
+  .tracks-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .track-tile {
+    position: relative; aspect-ratio: 1; border-radius: 4px;
+    overflow: hidden; cursor: pointer;
+    opacity: 0; transform: scale(0.93);
+    animation: tile-in 0.4s ease forwards;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .track-tile:hover {
+    transform: scale(1.08) !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6); z-index: 10;
+  }
+  @keyframes tile-in { to { opacity: 1; transform: scale(1); } }
+  .track-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .track-tile .tile-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.2) 40%, transparent 100%);
+    opacity: 0; transition: opacity 0.25s;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 6px;
+  }
+  .track-tile:hover .tile-overlay { opacity: 1; }
+  .tile-rank {
+    position: absolute; top: 4px; left: 5px;
+    font-size: 9px; font-weight: 800; color: rgba(255,255,255,0.7);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  }
+  .tile-name {
+    font-size: 8px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
+  }
+  .tile-artist {
+    font-size: 7px; color: var(--text-dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .album-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .album-card {
+    position: relative; aspect-ratio: 1; border-radius: 4px;
+    overflow: hidden; cursor: pointer;
+    opacity: 0; transform: scale(0.93);
+    animation: tile-in 0.4s ease forwards;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .album-card:hover {
+    transform: scale(1.06) !important;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5); z-index: 10;
+  }
+  .album-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .album-card .album-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.15) 45%, transparent 100%);
+    opacity: 0; transition: opacity 0.25s;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 8px;
+  }
+  .album-card:hover .album-overlay { opacity: 1; }
+  .album-card-name {
+    font-size: 10px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .album-card-artist {
+    font-size: 8px; color: var(--text-dim); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .divider {
+    width: 1px; align-self: stretch;
+    background: linear-gradient(to bottom, transparent 5%, rgba(255,255,255,0.04) 30%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.04) 70%, transparent 95%);
+    flex-shrink: 0;
+  }
+
+  .settings-trigger {
+    position: fixed; bottom: 20px; right: 20px; z-index: 60;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.3s ease;
+    opacity: 0;
+  }
+  body:hover .settings-trigger { opacity: 0.5; }
+  .settings-trigger:hover { opacity: 1 !important; background: rgba(255,255,255,0.06); }
+  .settings-trigger svg {
+    width: 14px; height: 14px;
+    stroke: rgba(255,255,255,0.4); fill: none; stroke-width: 1.5;
+    transition: stroke 0.2s;
+  }
+  .settings-trigger:hover svg { stroke: rgba(255,255,255,0.7); }
+
+  .settings-panel {
+    position: fixed; bottom: 60px; right: 20px; z-index: 60;
+    background: rgba(15,15,15,0.95);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 16px 18px;
+    backdrop-filter: blur(20px);
+    display: none;
+    flex-direction: column; gap: 14px;
+    min-width: 180px;
+    animation: panel-in 0.2s ease;
+  }
+  .settings-panel.open { display: flex; }
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .settings-group-label {
+    font-size: 8px; font-weight: 700; color: var(--text-dim);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .settings-row { display: flex; gap: 6px; }
+  .s-btn {
+    height: 26px; padding: 0 10px; border-radius: 50px; border: none;
+    background: rgba(255,255,255,0.04); color: var(--text-mid);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s;
+    font-family: 'Outfit', sans-serif; font-size: 10px;
+  }
+  .s-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .s-btn.active { background: var(--accent); color: #000; font-weight: 600; }
+
+  .settings-status {
+    font-size: 9px; color: var(--text-dim); letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .settings-status::before {
+    content: ''; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); animation: blink 3s ease-in-out infinite;
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+
+<div id="ambient-bg"></div>
+<div id="noise"></div>
+
+<div id="login-screen">
+  <div class="login-icon">
+    <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+  </div>
+  <div class="login-title">Album Wallpaper</div>
+  <div class="login-subtitle">Your top tracks and recently played albums, live on your desktop.</div>
+  <button class="setup-toggle" onclick="toggleSetup()">First time? Set up Spotify API access ▾</button>
+  <div class="setup-instructions" id="setup-box">
+    <ol>
+      <li>Go to <code>developer.spotify.com/dashboard</code></li>
+      <li>Log in with your <strong>Premium</strong> account and click <strong>Create App</strong></li>
+      <li>Set the <strong>Redirect URI</strong> to: <code id="redirect-uri-display"></code></li>
+      <li>Add yourself under <strong>User Management</strong></li>
+      <li>Copy your <strong>Client ID</strong> below:</li>
+    </ol>
+    <input class="client-id-input" id="clientIdInput" type="text" placeholder="Paste your Spotify Client ID here" />
+  </div>
+  <button class="login-btn" onclick="startAuth()">
+    <svg viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+    Connect Spotify
+  </button>
+</div>
+
+<div id="wallpaper">
+  <div class="section section-left">
+    <div class="section-header">
+      <span class="section-label">Top Tracks</span>
+      <span class="section-sublabel" id="range-label">Last 4 weeks</span>
+      <div class="header-line"></div>
+    </div>
+    <div class="tracks-grid" id="tracks-grid"></div>
+  </div>
+  <div class="divider"></div>
+  <div class="section section-right">
+    <div class="section-header">
+      <span class="section-label">Recently Played</span>
+      <span class="section-sublabel">Albums</span>
+      <div class="header-line"></div>
+    </div>
+    <div class="album-grid" id="album-grid"></div>
+  </div>
+</div>
+
+<div class="settings-trigger" id="settings-btn" onclick="toggleSettings()">
+  <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+  </svg>
+</div>
+
+<div class="settings-panel" id="settings-panel">
+  <div class="settings-status" id="status-text">Live · updates every 60s</div>
+  <div>
+    <div class="settings-group-label">Refresh</div>
+    <div class="settings-row" style="margin-top:6px;">
+      <button class="s-btn" id="spd-10">10s</button>
+      <button class="s-btn" id="spd-30">30s</button>
+      <button class="s-btn active" id="spd-60">1m</button>
+    </div>
+  </div>
+  <div>
+    <div class="settings-group-label">Top Range</div>
+    <div class="settings-row" style="margin-top:6px;">
+      <button class="s-btn active" id="range-short">4 wks</button>
+      <button class="s-btn" id="range-medium">6 mo</button>
+      <button class="s-btn" id="range-long">All</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SCOPES = 'user-read-recently-played user-read-currently-playing user-top-read';
+  let ACCESS_TOKEN = null, CLIENT_ID = null;
+  let topTracks = [], recentAlbums = [];
+  let refreshMs = 60000, timeRange = 'short_term';
+
+  function getRedirectUri() { return window.location.origin + window.location.pathname; }
+  document.getElementById('redirect-uri-display').textContent = getRedirectUri();
+
+  function randStr(len) {
+    const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const a = new Uint8Array(len); crypto.getRandomValues(a);
+    return Array.from(a, b => c[b % c.length]).join('');
+  }
+  async function sha256(s) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); }
+  function b64url(buf) {
+    let s=''; new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b));
+    return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+
+  function toggleSetup() { document.getElementById('setup-box').classList.toggle('visible'); }
+  function toggleSettings() { document.getElementById('settings-panel').classList.toggle('open'); }
+
+  document.addEventListener('click', (e) => {
+    const panel = document.getElementById('settings-panel');
+    const btn = document.getElementById('settings-btn');
+    if (!panel.contains(e.target) && !btn.contains(e.target)) {
+      panel.classList.remove('open');
+    }
+  });
+
+  async function startAuth() {
+    const input = document.getElementById('clientIdInput');
+    const saved = localStorage.getItem('sw_cid');
+    CLIENT_ID = (input.value||'').trim() || saved;
+    if (!CLIENT_ID) { toggleSetup(); input.focus(); return; }
+    localStorage.setItem('sw_cid', CLIENT_ID);
+    const cv = randStr(64); localStorage.setItem('sw_cv', cv);
+    const cc = b64url(await sha256(cv));
+    const p = new URLSearchParams({
+      client_id:CLIENT_ID, response_type:'code', redirect_uri:getRedirectUri(),
+      scope:SCOPES, code_challenge_method:'S256', code_challenge:cc
+    });
+    window.location.href = `https://accounts.spotify.com/authorize?${p}`;
+  }
+
+  async function exchangeCode(code) {
+    const cv = localStorage.getItem('sw_cv');
+    CLIENT_ID = localStorage.getItem('sw_cid');
+    if (!cv||!CLIENT_ID) return false;
+    try {
+      const r = await fetch('https://accounts.spotify.com/api/token', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({client_id:CLIENT_ID,grant_type:'authorization_code',code,redirect_uri:getRedirectUri(),code_verifier:cv})
+      });
+      const d = await r.json();
+      if (d.access_token) {
+        ACCESS_TOKEN = d.access_token;
+        if (d.refresh_token) localStorage.setItem('sw_rt', d.refresh_token);
+        history.replaceState({}, '', location.pathname); return true;
+      }
+      return false;
+    } catch(e) { return false; }
+  }
+
+  async function refresh() {
+    const rt = localStorage.getItem('sw_rt');
+    CLIENT_ID = localStorage.getItem('sw_cid');
+    if (!rt||!CLIENT_ID) return false;
+    try {
+      const r = await fetch('https://accounts.spotify.com/api/token', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams({client_id:CLIENT_ID,grant_type:'refresh_token',refresh_token:rt})
+      });
+      const d = await r.json();
+      if (d.access_token) {
+        ACCESS_TOKEN = d.access_token;
+        if (d.refresh_token) localStorage.setItem('sw_rt', d.refresh_token);
+        return true;
+      }
+    } catch(e) {}
+    return false;
+  }
+
+  async function api(url) {
+    if (!ACCESS_TOKEN) return null;
+    let r = await fetch(url, {headers:{'Authorization':`Bearer ${ACCESS_TOKEN}`}});
+    if (r.status===401) { if (await refresh()) r = await fetch(url,{headers:{'Authorization':`Bearer ${ACCESS_TOKEN}`}}); else return null; }
+    if (!r.ok) { console.error(`${r.status}`, await r.text()); return null; }
+    return r.json();
+  }
+
+  async function fetchAll() { await Promise.all([fetchTop(), fetchRecent()]); }
+
+  async function fetchTop() {
+    const d = await api(`https://api.spotify.com/v1/me/top/tracks?limit=15&time_range=${timeRange}`);
+    if (!d) return;
+    topTracks = (d.items||[]).map(t => ({
+      name: t.name,
+      artist: t.artists.map(a=>a.name).join(', '),
+      image: t.album?.images?.[0]?.url,
+      uri: t.uri
+    }));
+    renderTracks();
+    if (topTracks[0]?.image) {
+      document.getElementById('ambient-bg').style.backgroundImage = `url(${topTracks[0].image})`;
+    }
+  }
+
+  async function fetchRecent() {
+    const d = await api('https://api.spotify.com/v1/me/player/recently-played?limit=50');
+    if (!d) return;
+    const seen = new Set(); recentAlbums = [];
+    for (const item of d.items||[]) {
+      const a = item.track?.album;
+      if (a && !seen.has(a.id)) {
+        seen.add(a.id);
+        recentAlbums.push({
+          name: a.name,
+          artist: a.artists.map(x=>x.name).join(', '),
+          image: a.images[0]?.url,
+          uri: a.uri
+        });
+      }
+    }
+    renderAlbums();
+  }
+
+  function renderTracks() {
+    document.getElementById('tracks-grid').innerHTML = topTracks.map((t,i) => `
+      <div class="track-tile" style="animation-delay:${i*0.03}s" onclick="openSpotify('${t.uri}')">
+        <img src="${t.image}" alt="" loading="lazy">
+        <div class="tile-overlay">
+          <span class="tile-rank">${i+1}</span>
+          <div class="tile-name">${esc(t.name)}</div>
+          <div class="tile-artist">${esc(t.artist)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderAlbums() {
+    document.getElementById('album-grid').innerHTML = recentAlbums.slice(0,9).map((a,i) => `
+      <div class="album-card" style="animation-delay:${i*0.04}s" onclick="openSpotify('${a.uri}')">
+        <img src="${a.image}" alt="${esc(a.name)}" loading="lazy">
+        <div class="album-overlay">
+          <div class="album-card-name">${esc(a.name)}</div>
+          <div class="album-card-artist">${esc(a.artist)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function openSpotify(uri) { if (uri) window.location.href = uri; }
+
+  function setSpeed(ms) {
+    refreshMs = ms;
+    clearInterval(window._rt);
+    window._rt = setInterval(fetchAll, refreshMs);
+    ['10','30','60'].forEach(s=>document.getElementById('spd-'+s).classList.remove('active'));
+    document.getElementById('spd-'+(ms===10000?'10':ms===30000?'30':'60')).classList.add('active');
+    document.getElementById('status-text').textContent = `Live · updates every ${ms/1000}s`;
+  }
+  function setRange(r) {
+    timeRange = r;
+    ['short','medium','long'].forEach(s=>document.getElementById('range-'+s).classList.remove('active'));
+    document.getElementById('range-'+(r==='short_term'?'short':r==='medium_term'?'medium':'long')).classList.add('active');
+    document.getElementById('range-label').textContent = r==='short_term'?'Last 4 weeks':r==='medium_term'?'Last 6 months':'All time';
+    fetchTop();
+  }
+
+  document.getElementById('spd-10').addEventListener('click',()=>setSpeed(10000));
+  document.getElementById('spd-30').addEventListener('click',()=>setSpeed(30000));
+  document.getElementById('spd-60').addEventListener('click',()=>setSpeed(60000));
+  document.getElementById('range-short').addEventListener('click',()=>setRange('short_term'));
+  document.getElementById('range-medium').addEventListener('click',()=>setRange('medium_term'));
+  document.getElementById('range-long').addEventListener('click',()=>setRange('long_term'));
+
+  async function init() {
+    CLIENT_ID = localStorage.getItem('sw_cid');
+    const code = new URLSearchParams(location.search).get('code');
+    if (code && CLIENT_ID && await exchangeCode(code)) { activate(); return; }
+    if (CLIENT_ID && await refresh()) { activate(); return; }
+    if (CLIENT_ID) document.getElementById('clientIdInput').value = CLIENT_ID;
+  }
+  function activate() {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('wallpaper').classList.add('active');
+    fetchAll();
+    window._rt = setInterval(fetchAll, refreshMs);
+  }
+  init();
+</script>
+</body>
+</html>
